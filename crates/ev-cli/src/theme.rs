@@ -1,6 +1,7 @@
 use dialoguer::console::{style, Style, StyledObject};
 use dialoguer::theme::Theme;
 use std::fmt;
+use std::io::IsTerminal;
 
 /// no color used if:
 /// - NO_COLOR is set (regardless of value)
@@ -16,8 +17,6 @@ fn has_color_env_vars() -> bool {
 }
 
 pub struct CliTheme {
-    /// The style for default values
-    pub defaults_style: Style,
     /// The style for prompt
     pub prompt_style: Style,
     /// Prompt prefix value and style
@@ -58,10 +57,8 @@ pub struct CliTheme {
 
 impl Default for CliTheme {
     fn default() -> CliTheme {
-        let report = crate::tty::AttyReport::default();
-        if !report.stdout || has_color_env_vars() {
+        if !std::io::stdout().is_terminal() || has_color_env_vars() {
             CliTheme {
-                defaults_style: Style::new().for_stderr(),
                 prompt_style: Style::new().for_stderr(),
                 prompt_prefix: style("?".to_string()).for_stderr(),
                 prompt_suffix: style("›".to_string()).for_stderr(),
@@ -83,7 +80,6 @@ impl Default for CliTheme {
             }
         } else {
             CliTheme {
-                defaults_style: Style::new().for_stderr().cyan(),
                 prompt_style: Style::new().for_stderr().green().bold(),
                 prompt_prefix: style("?".to_string()).for_stderr().green().dim(),
                 prompt_suffix: style("›".to_string()).for_stderr().black().bright(),

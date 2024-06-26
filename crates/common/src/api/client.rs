@@ -71,14 +71,11 @@ pub trait ApiClient {
     }
 
     fn user_agent(&self) -> String {
-        format!("evervault-enclave-cli/{}", env!("CARGO_PKG_VERSION"))
+        format!("evervault-cli/{}", env!("CARGO_PKG_VERSION"))
     }
 
     fn accept(&self) -> String {
-        format!(
-            "application/json;version={}",
-            env!("CARGO_PKG_VERSION_MAJOR")
-        )
+        "application/json".to_string()
     }
 
     fn is_authorised(&self) -> bool {

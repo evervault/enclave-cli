@@ -15,7 +15,6 @@ mod fs;
 mod function;
 mod relay;
 mod theme;
-mod tty;
 mod version;
 
 pub use auth::get_auth;

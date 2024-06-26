@@ -58,9 +58,8 @@ jobs:
         run: cargo install cross
 
       - name: Inject Version
-        working-directory: crates/ev-cli
         run: |
-          sh ./scripts/insert-cli-version.sh ${{ inputs.full-version }}
+          sh ./scripts/insert-crate-versions.sh ${{ inputs.full-version }}
 
       - name: Build and Compress cli
         run: |
@@ -84,9 +83,8 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Inject Version
-        working-directory: crates/ev-cli
         run: |
-          sh ./scripts/insert-cli-version.sh ${{ inputs.full-version }}
+          sh ./scripts/insert-crate-versions.sh ${{ inputs.full-version }}
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -154,7 +152,6 @@ jobs:
 
       - uses: actions/checkout@v3
       - name: Update install script in S3
-        working-directory: crates/ev-cli
         run: |
           sh ./scripts/generate-installer.sh ${{ inputs.full-version }} ${{ inputs.major-version }} ${{ inputs.ev-domain }}
           sh ./scripts/update-versions.sh ${{ inputs.full-version }} ${{ inputs.ev-domain }}
