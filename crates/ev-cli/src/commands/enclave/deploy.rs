@@ -1,9 +1,9 @@
 use atty::Stream;
 use clap::Parser;
-use common::api::enclave_assets::EnclaveAssetsClient;
 use common::api::AuthMode;
 use common::api::{client::ApiErrorKind, BasicAuth};
 use common::CliError;
+use ev_enclave::version::EnclaveRuntime;
 use ev_enclave::{
     api::enclave::EnclaveApi,
     build::build_enclave_image_file,
@@ -14,7 +14,6 @@ use ev_enclave::{
     docker::command::get_source_date_epoch,
     enclave::EIFMeasurements,
 };
-use exitcode::ExitCode;
 
 use crate::BaseArgs;
 
@@ -150,12 +149,11 @@ pub async fn run(deploy_args: DeployArgs, (_, api_key): BasicAuth) -> exitcode::
         .as_ref()
         .map(|args| args.iter().map(AsRef::as_ref).collect());
 
-    let (data_plane_version, installer_version) = match get_data_plane_and_installer_version().await
-    {
+    let enclave_runtime = match EnclaveRuntime::new().await {
         Ok(versions) => versions,
         Err(e) => {
             log::error!("Failed to get data plane and installer versions – {e}");
-            return e;
+            return e.exitcode();
         }
     };
 
@@ -168,8 +166,7 @@ pub async fn run(deploy_args: DeployArgs, (_, api_key): BasicAuth) -> exitcode::
         build_args,
         from_existing,
         timestamp,
-        data_plane_version.clone(),
-        installer_version.clone(),
+        &enclave_runtime,
         deploy_args.reproducible,
         deploy_args.no_cache,
     )
@@ -197,8 +194,7 @@ pub async fn run(deploy_args: DeployArgs, (_, api_key): BasicAuth) -> exitcode::
         enclave_api,
         output_path,
         &eif_measurements,
-        data_plane_version,
-        installer_version,
+        &enclave_runtime,
     )
     .await
     {
@@ -231,8 +227,7 @@ async fn resolve_eif(
     build_args: Option<Vec<&str>>,
     from_existing: Option<String>,
     timestamp: String,
-    data_plane_version: String,
-    installer_version: String,
+    enclave_runtime: &EnclaveRuntime,
     reproducible: bool,
     no_cache: bool,
 ) -> Result<(EIFMeasurements, OutputPath), exitcode::ExitCode> {
@@ -279,8 +274,7 @@ async fn resolve_eif(
             None,
             verbose,
             build_args,
-            data_plane_version,
-            installer_version,
+            enclave_runtime,
             timestamp,
             from_existing,
             reproducible,
@@ -293,26 +287,4 @@ async fn resolve_eif(
         })?;
         Ok((built_enclave.measurements().to_owned(), output_path))
     }
-}
-
-async fn get_data_plane_and_installer_version() -> Result<(String, String), ExitCode> {
-    let enclave_build_assets_client = EnclaveAssetsClient::new();
-    let data_plane_version = match enclave_build_assets_client.get_data_plane_version().await {
-        Ok(version) => version,
-        Err(e) => {
-            log::error!("Failed to retrieve the latest data plane version - {e:?}");
-            return Err(e.exitcode());
-        }
-    };
-    let installer_version = match enclave_build_assets_client
-        .get_runtime_installer_version()
-        .await
-    {
-        Ok(version) => version,
-        Err(e) => {
-            log::error!("Failed to retrieve the latest installer version - {e:?}");
-            return Err(e.exitcode());
-        }
-    };
-    Ok((data_plane_version, installer_version))
 }

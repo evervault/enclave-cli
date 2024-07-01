@@ -1,6 +1,4 @@
-use crate::enclave::get_runtime_major_version;
-
-use super::{
+use common::api::{
     client::{
         ApiClient, ApiClientError, ApiError, ApiErrorKind, ApiResult, GenericApiClient,
         HandleResponse,
@@ -43,6 +41,13 @@ impl ApiClient for EnclaveAssetsClient {
     fn update_auth(&mut self, _: AuthMode) -> Result<(), ApiClientError> {
         Err(ApiClientError::AuthModeNotSupported)
     }
+
+    fn accept(&self) -> String {
+        format!(
+            "application/json;version={}",
+            env!("CARGO_PKG_VERSION_MAJOR")
+        )
+    }
 }
 
 impl Default for EnclaveAssetsClient {
@@ -72,7 +77,7 @@ impl EnclaveAssetsClient {
     }
 
     pub async fn get_runtime_versions(&self) -> ApiResult<RuntimeMajorVersion> {
-        let runtime_major_version = get_runtime_major_version();
+        let enclave_version = env!("CARGO_PKG_VERSION_MAJOR");
         let data_plane_version = format!("{}/runtime/versions", self.base_url());
         let result = self
             .get(&data_plane_version)
@@ -80,7 +85,7 @@ impl EnclaveAssetsClient {
             .await
             .handle_json_response::<RuntimeVersion>()
             .await?;
-        match result.versions.get(&runtime_major_version) {
+        match result.versions.get(enclave_version) {
             Some(versions) => Ok(versions.clone()),
             None => Err(ApiError::new(ApiErrorKind::NotFound)),
         }

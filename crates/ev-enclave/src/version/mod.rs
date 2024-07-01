@@ -1,5 +1,5 @@
+use crate::api::enclave_assets::EnclaveAssetsClient;
 use common::api::client::ApiError;
-use common::api::enclave_assets::EnclaveAssetsClient;
 use common::CliError;
 use regex::Regex;
 use std::fs;
@@ -34,18 +34,36 @@ impl CliError for VersionError {
     }
 }
 
-pub async fn get_runtime_and_installer_version(
-    from_existing: Option<String>,
-) -> Result<(String, String), VersionError> {
-    match from_existing {
-        Some(existing) => parse_version_from_existing_dockerfile(existing),
-        None => {
-            let enclave_build_assets_client = EnclaveAssetsClient::new();
-            let data_plane_version = enclave_build_assets_client.get_data_plane_version().await?;
-            let installer_version = enclave_build_assets_client
-                .get_runtime_installer_version()
-                .await?;
-            Ok((data_plane_version, installer_version))
+pub struct EnclaveRuntime {
+    pub data_plane_version: String,
+    pub installer_version: String,
+}
+
+impl EnclaveRuntime {
+    pub async fn new() -> Result<EnclaveRuntime, VersionError> {
+        let client = EnclaveAssetsClient::new();
+        let versions = client.get_runtime_versions().await?;
+
+        Ok(Self {
+            data_plane_version: versions.latest,
+            installer_version: versions.installer,
+        })
+    }
+
+    pub async fn maybe_from_existing_dockerfile(
+        dockerfile: Option<String>,
+    ) -> Result<EnclaveRuntime, VersionError> {
+        match dockerfile {
+            None => Self::new().await,
+            Some(dockerfile) => {
+                let (data_plane_version, installer_version) =
+                    parse_version_from_existing_dockerfile(dockerfile)?;
+
+                Ok(Self {
+                    data_plane_version,
+                    installer_version,
+                })
+            }
         }
     }
 }

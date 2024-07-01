@@ -1139,7 +1139,7 @@ dependencies = [
 
 [[package]]
 name = "ev-enclave"
-version = "1.0.0-dev"
+version = "1.0.5"
 dependencies = [
  "async-stream",
  "async-trait",

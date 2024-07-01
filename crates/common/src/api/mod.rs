@@ -1,6 +1,5 @@
 pub mod assets;
 pub mod client;
-pub mod enclave_assets;
 pub mod function;
 pub mod papi;
 pub use reqwest::Client;

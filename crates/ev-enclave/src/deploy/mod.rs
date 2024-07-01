@@ -5,6 +5,7 @@ use crate::config::ValidatedEnclaveBuildConfig;
 use crate::describe::describe_eif;
 use crate::enclave::{EIFMeasurements, ENCLAVE_FILENAME};
 use crate::progress::{get_tracker, poll_fn_and_report_status, ProgressLogger, StatusReport};
+use crate::version::EnclaveRuntime;
 use std::io::Write;
 use std::sync::Arc;
 mod error;
@@ -27,8 +28,7 @@ pub async fn deploy_eif<T: EnclaveApi + Clone>(
     enclave_api: T,
     output_path: OutputPath,
     eif_measurements: &EIFMeasurements,
-    data_plane_version: String,
-    installer_version: String,
+    enclave_runtime: &EnclaveRuntime,
 ) -> Result<(), DeployError> {
     let progress_bar = get_tracker("Zipping Enclave...", None);
     create_zip_archive_for_eif(output_path.path())?;
@@ -45,8 +45,7 @@ pub async fn deploy_eif<T: EnclaveApi + Clone>(
         eif_measurements.pcrs(),
         validated_config.clone(),
         eif_size_bytes,
-        data_plane_version,
-        installer_version,
+        &enclave_runtime,
         get_source_date_epoch(),
         get_git_hash(),
         validated_config

@@ -1,4 +1,2 @@
-[env]
-ENCLAVE_RUNTIME_VERSION = "1.0.5"
 [registry]
 global-credential-providers = ["cargo:token"]

@@ -4,7 +4,7 @@ use ev_enclave::build::build_enclave_image_file;
 use ev_enclave::common::prepare_build_args;
 use ev_enclave::config::{read_and_validate_config, BuildTimeConfig};
 use ev_enclave::docker::command::get_source_date_epoch;
-use ev_enclave::version::get_runtime_and_installer_version;
+use ev_enclave::version::EnclaveRuntime;
 
 use crate::BaseArgs;
 
@@ -88,16 +88,17 @@ pub async fn run(build_args: BuildArgs) -> exitcode::ExitCode {
         .as_ref()
         .map(|args| args.iter().map(AsRef::as_ref).collect());
 
-    let (data_plane_version, installer_version) =
-        match get_runtime_and_installer_version(build_args.from_existing.clone()).await {
-            Ok(versions) => versions,
-            Err(e) => {
-                log::error!(
-                    "Failed to retrieve the latest data plane and installer versions - {e:?}"
-                );
-                return e.exitcode();
-            }
-        };
+    let enclave_runtime = match EnclaveRuntime::maybe_from_existing_dockerfile(
+        build_args.from_existing.clone(),
+    )
+    .await
+    {
+        Ok(runtime) => runtime,
+        Err(e) => {
+            log::error!("Failed to retrieve the latest data plane and installer versions - {e:?}");
+            return e.exitcode();
+        }
+    };
 
     let timestamp = get_source_date_epoch();
 
@@ -108,8 +109,7 @@ pub async fn run(build_args: BuildArgs) -> exitcode::ExitCode {
         Some(&build_args.output_dir),
         base_args.verbose,
         borrowed_args,
-        data_plane_version,
-        installer_version,
+        &enclave_runtime,
         timestamp,
         from_existing,
         build_args.reproducible,

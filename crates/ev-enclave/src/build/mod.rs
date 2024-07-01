@@ -7,6 +7,7 @@ use crate::docker::error::DockerError;
 use crate::docker::parse::{Directive, DockerfileDecoder, EnvVar, Mode};
 use crate::docker::utils::verify_docker_is_running;
 use crate::enclave;
+use crate::version::EnclaveRuntime;
 
 use serde_json::json;
 use std::io::Write;
@@ -31,8 +32,7 @@ pub async fn build_enclave_image_file(
     output_dir: Option<&str>,
     verbose: bool,
     docker_build_args: Option<Vec<&str>>,
-    data_plane_version: String,
-    installer_version: String,
+    enclave_runtime: &EnclaveRuntime,
     timestamp: String,
     from_existing: Option<String>,
     reproducible: bool,
@@ -71,8 +71,7 @@ pub async fn build_enclave_image_file(
                 context_path,
                 verbose,
                 docker_build_args,
-                data_plane_version,
-                installer_version,
+                enclave_runtime,
                 output_path.path(),
                 timestamp,
                 reproducible,
@@ -123,8 +122,7 @@ pub async fn build_from_scratch(
     context_path: &Path,
     verbose: bool,
     docker_build_args: Option<Vec<&str>>,
-    data_plane_version: String,
-    installer_version: String,
+    enclave_runtime: &EnclaveRuntime,
     output_path: &Path,
     timestamp: String,
     reproducible: bool,
@@ -146,14 +144,8 @@ pub async fn build_from_scratch(
         .await
         .map_err(|_| BuildError::DockerfileAccessError(enclave_config.dockerfile().to_string()))?;
 
-    let processed_dockerfile = process_dockerfile(
-        enclave_config,
-        dockerfile,
-        data_plane_version,
-        installer_version,
-        reproducible,
-    )
-    .await?;
+    let processed_dockerfile =
+        process_dockerfile(enclave_config, dockerfile, enclave_runtime, reproducible).await?;
 
     // write new dockerfile to fs
     let user_dockerfile_path = output_path.join(EV_USER_DOCKERFILE_PATH);
@@ -187,8 +179,7 @@ pub async fn build_from_scratch(
 async fn process_dockerfile<R: AsyncRead + std::marker::Unpin>(
     build_config: &ValidatedEnclaveBuildConfig,
     dockerfile_src: R,
-    data_plane_version: String,
-    installer_version: String,
+    enclave_runtime: &EnclaveRuntime,
     reproducible: bool,
 ) -> Result<Vec<Directive>, BuildError> {
     // Decode dockerfile from file
@@ -250,7 +241,7 @@ async fn process_dockerfile<R: AsyncRead + std::marker::Unpin>(
     let data_plane_url = format!(
         "https://enclave-build-assets.{}/runtime/{}/data-plane/{}",
         ev_domain,
-        data_plane_version,
+        enclave_runtime.data_plane_version,
         build_config.get_dataplane_feature_label()
     );
 
@@ -286,7 +277,7 @@ async fn process_dockerfile<R: AsyncRead + std::marker::Unpin>(
 
     let installer_bundle_url = format!(
         "https://enclave-build-assets.{}/installer/{}.tar.gz",
-        ev_domain, installer_version
+        ev_domain, enclave_runtime.installer_version
     );
     let installer_bundle = "runtime-dependencies.tar.gz";
     let installer_destination = format!("{INSTALLER_DIRECTORY}/{installer_bundle}");
@@ -464,6 +455,7 @@ mod test {
     use crate::docker;
     use crate::enclave;
     use crate::test_utils;
+    use crate::version::EnclaveRuntime;
     use std::iter::zip;
     use tempfile::TempDir;
 
@@ -512,17 +504,13 @@ ENTRYPOINT ["sh", "/hello-script"]"#;
 
         let config = get_config(false);
 
-        let data_plane_version = "0.0.0".to_string();
-        let installer_version = "abcdef".to_string();
+        let enclave_runtime = EnclaveRuntime {
+            data_plane_version: "0.0.0".to_string(),
+            installer_version: "abcdef".to_string(),
+        };
 
-        let processed_file = process_dockerfile(
-            &config,
-            &mut readable_contents,
-            data_plane_version,
-            installer_version,
-            true,
-        )
-        .await;
+        let processed_file =
+            process_dockerfile(&config, &mut readable_contents, &enclave_runtime, true).await;
         assert_eq!(processed_file.is_ok(), true);
         let processed_file = processed_file.unwrap();
 
@@ -575,17 +563,13 @@ ENTRYPOINT ["sh", "/hello-script"]"#;
 
         let config = get_config(false);
 
-        let data_plane_version = "0.0.0".to_string();
-        let installer_version = "abcdef".to_string();
+        let enclave_runtime = EnclaveRuntime {
+            data_plane_version: "0.0.0".to_string(),
+            installer_version: "abcdef".to_string(),
+        };
 
-        let processed_file = process_dockerfile(
-            &config,
-            &mut readable_contents,
-            data_plane_version,
-            installer_version,
-            true,
-        )
-        .await;
+        let processed_file =
+            process_dockerfile(&config, &mut readable_contents, &enclave_runtime, true).await;
         assert_eq!(processed_file.is_ok(), true);
         let processed_file = processed_file.unwrap();
 
@@ -640,17 +624,13 @@ ENTRYPOINT ["sh", "/hello-script"]"#;
 
         let config = get_config(false);
 
-        let data_plane_version = "0.0.0".to_string();
-        let installer_version = "abcdef".to_string();
+        let enclave_runtime = EnclaveRuntime {
+            data_plane_version: "0.0.0".to_string(),
+            installer_version: "abcdef".to_string(),
+        };
 
-        let processed_file = process_dockerfile(
-            &config,
-            &mut readable_contents,
-            data_plane_version,
-            installer_version,
-            true,
-        )
-        .await;
+        let processed_file =
+            process_dockerfile(&config, &mut readable_contents, &enclave_runtime, true).await;
         assert_eq!(processed_file.is_ok(), true);
         let processed_file = processed_file.unwrap();
 
@@ -704,17 +684,13 @@ ENTRYPOINT ["sh", "/hello-script"]"#;
 
         let config = get_config(false);
 
-        let data_plane_version = "0.0.0".to_string();
-        let installer_version = "abcdef".to_string();
+        let enclave_runtime = EnclaveRuntime {
+            data_plane_version: "0.0.0".to_string(),
+            installer_version: "abcdef".to_string(),
+        };
 
-        let processed_file = process_dockerfile(
-            &config,
-            &mut readable_contents,
-            data_plane_version,
-            installer_version,
-            false,
-        )
-        .await;
+        let processed_file =
+            process_dockerfile(&config, &mut readable_contents, &enclave_runtime, false).await;
         assert_eq!(processed_file.is_ok(), true);
         let processed_file = processed_file.unwrap();
 
@@ -765,16 +741,12 @@ ENTRYPOINT ["sh", "/hello-script"]"#;
         let mut config: ValidatedEnclaveBuildConfig = get_config(false);
         config.healthcheck = Some("/health".into());
 
-        let data_plane_version = "0.0.0".to_string();
-        let installer_version = "abcdef".to_string();
-        let processed_file = process_dockerfile(
-            &config,
-            &mut readable_contents,
-            data_plane_version,
-            installer_version,
-            false,
-        )
-        .await;
+        let enclave_runtime = EnclaveRuntime {
+            data_plane_version: "0.0.0".to_string(),
+            installer_version: "abcdef".to_string(),
+        };
+        let processed_file =
+            process_dockerfile(&config, &mut readable_contents, &enclave_runtime, false).await;
         assert_eq!(processed_file.is_ok(), true);
         let processed_file = processed_file.unwrap();
 
@@ -825,16 +797,12 @@ ENTRYPOINT ["sh", "/hello-script"]"#;
 
         let config = get_config(false);
 
-        let data_plane_version = "0.0.0".to_string();
-        let installer_version = "abcdef".to_string();
-        let processed_file = process_dockerfile(
-            &config,
-            &mut readable_contents,
-            data_plane_version,
-            installer_version,
-            false,
-        )
-        .await;
+        let enclave_runtime = EnclaveRuntime {
+            data_plane_version: "0.0.0".to_string(),
+            installer_version: "abcdef".to_string(),
+        };
+        let processed_file =
+            process_dockerfile(&config, &mut readable_contents, &enclave_runtime, false).await;
         assert_eq!(processed_file.is_ok(), true);
         let processed_file = processed_file.unwrap();
 
@@ -886,16 +854,12 @@ ENTRYPOINT ["sh", "/hello-script"]"#;
 
         let config = get_config(true);
 
-        let data_plane_version = "0.0.0".to_string();
-        let installer_version = "abcdef".to_string();
-        let processed_file = process_dockerfile(
-            &config,
-            &mut readable_contents,
-            data_plane_version,
-            installer_version,
-            false,
-        )
-        .await;
+        let enclave_runtime = EnclaveRuntime {
+            data_plane_version: "0.0.0".to_string(),
+            installer_version: "abcdef".to_string(),
+        };
+        let processed_file =
+            process_dockerfile(&config, &mut readable_contents, &enclave_runtime, false).await;
         assert_eq!(processed_file.is_ok(), true);
         let processed_file = processed_file.unwrap();
 
@@ -949,16 +913,12 @@ ENTRYPOINT ["sh", "/hello-script"]"#;
 
         let config = get_config(false);
 
-        let data_plane_version = "0.0.0".to_string();
-        let installer_version = "abcdef".to_string();
-        let processed_file = process_dockerfile(
-            &config,
-            &mut readable_contents,
-            data_plane_version,
-            installer_version,
-            false,
-        )
-        .await;
+        let enclave_runtime = EnclaveRuntime {
+            data_plane_version: "0.0.0".to_string(),
+            installer_version: "abcdef".to_string(),
+        };
+        let processed_file =
+            process_dockerfile(&config, &mut readable_contents, &enclave_runtime, false).await;
         assert_eq!(processed_file.is_ok(), true);
         let processed_file = processed_file.unwrap();
 
